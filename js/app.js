@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFormValidation();
     initPhoneMask();
     initCityAutocomplete();
+    initCursosAnos();
     initDuplicateCheck();
     initServiceWorker();
     initInstallPrompt();
@@ -114,6 +115,81 @@ function showForm() {
         window.scrollTo({ top: 0, behavior: 'instant' });
         pushAppState('step-1');
     }, 500);
+}
+
+// ========================================
+// Cursos com Ano de Conclusão Individual
+// ========================================
+
+function initCursosAnos() {
+    const checkboxes = document.querySelectorAll('input[name="cursos"]');
+    const container = document.getElementById('cursos-anos-container');
+    const list = document.getElementById('cursos-anos-list');
+    
+    if (!checkboxes.length || !container || !list) return;
+    
+    const anosOptions = `
+        <option value="">Ano</option>
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+        <option value="2023">2023</option>
+        <option value="2022">2022</option>
+        <option value="2021">2021</option>
+        <option value="2020">2020</option>
+        <option value="2019">2019</option>
+        <option value="2018">2018</option>
+        <option value="2017">2017</option>
+        <option value="2016">2016</option>
+        <option value="2015">2015</option>
+        <option value="anterior">Anterior a 2015</option>
+    `;
+    
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            updateCursosAnos();
+        });
+    });
+    
+    function updateCursosAnos() {
+        const checked = document.querySelectorAll('input[name="cursos"]:checked');
+        
+        if (checked.length === 0) {
+            container.style.display = 'none';
+            list.innerHTML = '';
+            return;
+        }
+        
+        container.style.display = 'block';
+        
+        // Preservar anos já selecionados
+        const existingAnos = {};
+        list.querySelectorAll('.curso-ano-item').forEach(item => {
+            const nome = item.querySelector('.curso-nome').textContent;
+            const ano = item.querySelector('select').value;
+            existingAnos[nome] = ano;
+        });
+        
+        list.innerHTML = '';
+        
+        checked.forEach(cb => {
+            const cursoNome = cb.value;
+            const item = document.createElement('div');
+            item.className = 'curso-ano-item';
+            item.innerHTML = `
+                <span class="curso-nome">${cursoNome}</span>
+                <select class="curso-ano-select">${anosOptions}</select>
+            `;
+            
+            // Restaurar ano se já existia
+            if (existingAnos[cursoNome]) {
+                const select = item.querySelector('select');
+                select.value = existingAnos[cursoNome];
+            }
+            
+            list.appendChild(item);
+        });
+    }
 }
 
 // ========================================
@@ -332,8 +408,11 @@ function resetForm() {
 // ========================================
 
 function initPhotoUpload() {
-    elements.photoUpload.addEventListener('click', () => {
-        elements.photoInput.click();
+    elements.photoUpload.addEventListener('click', (e) => {
+        // Só abre galeria se não tem foto ainda
+        if (!photoBase64) {
+            elements.photoInput.click();
+        }
     });
     
     elements.btnGallery.addEventListener('click', (e) => {
@@ -349,6 +428,18 @@ function initPhotoUpload() {
     elements.photoInput.addEventListener('change', handlePhotoSelect);
     elements.cameraInput.addEventListener('change', handlePhotoSelect);
 }
+
+// Estado do crop/drag da foto
+let photoDrag = {
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    offsetX: 0,
+    offsetY: 0,
+    currentX: 0,
+    currentY: 0,
+    scale: 1
+};
 
 function handlePhotoSelect(e) {
     const file = e.target.files[0];
@@ -372,8 +463,144 @@ function handlePhotoSelect(e) {
         elements.photoPlaceholder.classList.add('hidden');
         elements.photoUpload.style.borderStyle = 'solid';
         elements.photoUpload.style.borderColor = 'var(--color-gold)';
+        
+        // Resetar posição
+        photoDrag.currentX = 0;
+        photoDrag.currentY = 0;
+        photoDrag.scale = 1;
+        updatePhotoTransform();
+        
+        // Mostrar controles
+        const controls = document.getElementById('photo-controls');
+        const hint = document.getElementById('photo-drag-hint');
+        if (controls) controls.classList.remove('hidden');
+        if (hint) hint.classList.remove('hidden');
+        
+        // Resetar zoom slider
+        const zoomSlider = document.getElementById('photo-zoom');
+        if (zoomSlider) zoomSlider.value = 100;
+        
+        // Inicializar drag e zoom
+        initPhotoDragZoom();
     };
     reader.readAsDataURL(file);
+}
+
+function initPhotoDragZoom() {
+    const preview = elements.photoPreview;
+    const container = elements.photoUpload;
+    const zoomSlider = document.getElementById('photo-zoom');
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+    
+    // Remover listeners antigos (para não duplicar)
+    const newPreview = preview.cloneNode(true);
+    preview.parentNode.replaceChild(newPreview, preview);
+    elements.photoPreview = newPreview;
+    
+    // --- DRAG (mouse) ---
+    newPreview.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        photoDrag.isDragging = true;
+        photoDrag.startX = e.clientX - photoDrag.currentX;
+        photoDrag.startY = e.clientY - photoDrag.currentY;
+        newPreview.classList.add('dragging');
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!photoDrag.isDragging) return;
+        photoDrag.currentX = e.clientX - photoDrag.startX;
+        photoDrag.currentY = e.clientY - photoDrag.startY;
+        updatePhotoTransform();
+    });
+    
+    document.addEventListener('mouseup', () => {
+        photoDrag.isDragging = false;
+        newPreview.classList.remove('dragging');
+    });
+    
+    // --- DRAG (touch) ---
+    newPreview.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            e.stopPropagation();
+            photoDrag.isDragging = true;
+            photoDrag.startX = e.touches[0].clientX - photoDrag.currentX;
+            photoDrag.startY = e.touches[0].clientY - photoDrag.currentY;
+        }
+    }, { passive: true });
+    
+    document.addEventListener('touchmove', (e) => {
+        if (!photoDrag.isDragging) return;
+        if (e.touches.length === 1) {
+            photoDrag.currentX = e.touches[0].clientX - photoDrag.startX;
+            photoDrag.currentY = e.touches[0].clientY - photoDrag.startY;
+            updatePhotoTransform();
+        }
+    }, { passive: true });
+    
+    document.addEventListener('touchend', () => {
+        photoDrag.isDragging = false;
+    });
+    
+    // --- ZOOM (slider) ---
+    if (zoomSlider) {
+        zoomSlider.addEventListener('input', (e) => {
+            photoDrag.scale = parseInt(e.target.value) / 100;
+            updatePhotoTransform();
+        });
+    }
+    
+    // --- ZOOM (botões) ---
+    if (btnZoomIn) {
+        btnZoomIn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            photoDrag.scale = Math.min(3, photoDrag.scale + 0.1);
+            if (zoomSlider) zoomSlider.value = Math.round(photoDrag.scale * 100);
+            updatePhotoTransform();
+        });
+    }
+    
+    if (btnZoomOut) {
+        btnZoomOut.addEventListener('click', (e) => {
+            e.stopPropagation();
+            photoDrag.scale = Math.max(1, photoDrag.scale - 0.1);
+            if (zoomSlider) zoomSlider.value = Math.round(photoDrag.scale * 100);
+            updatePhotoTransform();
+        });
+    }
+    
+    // --- PINCH ZOOM (touch) ---
+    let lastPinchDist = 0;
+    container.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            lastPinchDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+        }
+    }, { passive: true });
+    
+    container.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2) {
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const delta = (dist - lastPinchDist) * 0.01;
+            photoDrag.scale = Math.max(1, Math.min(3, photoDrag.scale + delta));
+            lastPinchDist = dist;
+            if (zoomSlider) zoomSlider.value = Math.round(photoDrag.scale * 100);
+            updatePhotoTransform();
+        }
+    }, { passive: true });
+}
+
+function updatePhotoTransform() {
+    if (elements.photoPreview) {
+        elements.photoPreview.style.transform = 
+            `translate(${photoDrag.currentX}px, ${photoDrag.currentY}px) scale(${photoDrag.scale})`;
+    }
 }
 
 // ========================================
@@ -607,6 +834,17 @@ function validateStep(step) {
         if (cursos.length === 0) {
             isValid = false;
             alert('Por favor, selecione pelo menos um curso.');
+        } else {
+            // Verificar se todos os cursos têm ano selecionado
+            const anosSelects = document.querySelectorAll('.curso-ano-select');
+            let todosComAno = true;
+            anosSelects.forEach(sel => {
+                if (!sel.value) todosComAno = false;
+            });
+            if (!todosComAno) {
+                isValid = false;
+                alert('Por favor, selecione o ano de conclusão para todos os cursos.');
+            }
         }
     }
     
@@ -825,9 +1063,23 @@ async function handleSubmit(e) {
 }
 
 function collectFormData() {
-    const cursos = Array.from(document.querySelectorAll('input[name="cursos"]:checked'))
-        .map(cb => cb.value)
-        .join(', ');
+    // Coletar cursos com seus anos
+    const cursosAnos = Array.from(document.querySelectorAll('.curso-ano-item')).map(item => {
+        const nome = item.querySelector('.curso-nome').textContent;
+        const ano = item.querySelector('select').value;
+        return `${nome} (${ano})`;
+    });
+    
+    const cursos = cursosAnos.join('\n');
+    
+    // Ano de conclusão mais recente (para compatibilidade)
+    const anosSelects = document.querySelectorAll('.curso-ano-select');
+    let anoConclusao = '';
+    anosSelects.forEach(sel => {
+        if (sel.value && (sel.value > anoConclusao || !anoConclusao)) {
+            anoConclusao = sel.value;
+        }
+    });
     
     return {
         timestamp: new Date().toISOString(),
@@ -837,7 +1089,7 @@ function collectFormData() {
         cidade: document.getElementById('cidade').value.trim(),
         estado: document.getElementById('estado').value,
         cursos: cursos,
-        ano_conclusao: document.getElementById('ano_conclusao').value,
+        ano_conclusao: anoConclusao,
         experiencia: document.getElementById('experiencia').value.trim(),
         instagram: document.getElementById('instagram').value.trim(),
         portfolio: document.getElementById('portfolio').value.trim(),

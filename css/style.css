@@ -770,6 +770,112 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    cursor: grab;
+    transform-origin: center center;
+    transition: none;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+.photo-preview:active {
+    cursor: grabbing;
+}
+
+.photo-preview.dragging {
+    cursor: grabbing;
+}
+
+.photo-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-sm);
+}
+
+.photo-control-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--color-gray-200);
+    background: var(--color-cream);
+    color: var(--color-gray-400);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.photo-control-btn:hover {
+    background: var(--color-black);
+    border-color: var(--color-black);
+    color: var(--color-white);
+}
+
+.photo-zoom-slider {
+    width: 80px;
+    height: 3px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--color-gray-200);
+    border-radius: 2px;
+    outline: none;
+}
+
+.photo-zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--color-gold);
+    cursor: pointer;
+    border: 2px solid var(--color-white);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.photo-drag-hint {
+    font-size: 0.68rem;
+    color: var(--color-gray-300);
+    margin-top: 4px;
+    text-align: center;
+}
+
+/* Cursos com ano individual */
+.cursos-anos-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.curso-ano-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 8px 12px;
+    background: var(--color-cream);
+    border-radius: 8px;
+    border: 1px solid var(--color-gray-100);
+    animation: fadeInUp 0.3s ease;
+}
+
+.curso-ano-item .curso-nome {
+    flex: 1;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-gray-500);
+}
+
+.curso-ano-item select {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    font-family: var(--font-body);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 6px;
+    background: var(--color-white);
+    color: var(--color-gray-500);
+    cursor: pointer;
+    min-width: 110px;
 }
 
 .photo-hint {

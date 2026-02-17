@@ -170,8 +170,18 @@
                                 </svg>
                                 <span>Adicionar foto</span>
                             </div>
-                            <img id="photo-preview" class="photo-preview hidden" alt="Preview">
+                            <img id="photo-preview" class="photo-preview hidden" alt="Preview" draggable="false">
                         </div>
+                        <div class="photo-controls hidden" id="photo-controls">
+                            <button type="button" id="btn-zoom-out" class="photo-control-btn" title="Diminuir">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                            <input type="range" id="photo-zoom" class="photo-zoom-slider" min="100" max="300" value="100">
+                            <button type="button" id="btn-zoom-in" class="photo-control-btn" title="Aumentar">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                        </div>
+                        <p class="photo-drag-hint hidden" id="photo-drag-hint">Arraste para ajustar · Pinça para zoom</p>
                         <div class="photo-options">
                             <button type="button" id="btn-gallery" class="photo-option-btn">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -335,25 +345,10 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="ano_conclusao" class="form-label">Ano de Conclusão *</label>
-                            <select id="ano_conclusao" name="ano_conclusao" class="form-input form-select" required>
-                                <option value="">Selecione o ano</option>
-                                <option value="2026">2026</option>
-                                <option value="2025">2025</option>
-                                <option value="2024">2024</option>
-                                <option value="2023">2023</option>
-                                <option value="2022">2022</option>
-                                <option value="2021">2021</option>
-                                <option value="2020">2020</option>
-                                <option value="2019">2019</option>
-                                <option value="2018">2018</option>
-                                <option value="2017">2017</option>
-                                <option value="2016">2016</option>
-                                <option value="2015">2015</option>
-                                <option value="anterior">Anterior a 2015</option>
-                            </select>
-                            <span class="input-line"></span>
+                        <!-- Anos de conclusão dinâmicos (aparecem conforme cursos selecionados) -->
+                        <div class="form-group full-width" id="cursos-anos-container" style="display:none;">
+                            <label class="form-label">Ano de Conclusão por Curso *</label>
+                            <div id="cursos-anos-list" class="cursos-anos-list"></div>
                         </div>
 
                         <div class="form-group full-width">
