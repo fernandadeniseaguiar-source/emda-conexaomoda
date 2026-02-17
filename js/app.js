@@ -850,17 +850,43 @@ function collectFormData() {
 
 async function sendToGoogleSheets(data) {
     try {
-        const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+        // Método mais confiável com Google Apps Script:
+        // Criar form invisível e submeter (evita CORS)
+        return new Promise((resolve) => {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = CONFIG.GOOGLE_SCRIPT_URL;
+            form.target = 'emda-hidden-frame';
+            form.style.display = 'none';
+            
+            // Criar iframe invisível para receber a resposta
+            let iframe = document.getElementById('emda-hidden-frame');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'emda-hidden-frame';
+                iframe.name = 'emda-hidden-frame';
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+            }
+            
+            // Adicionar os dados como campo hidden
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'payload';
+            input.value = JSON.stringify(data);
+            form.appendChild(input);
+            
+            document.body.appendChild(form);
+            form.submit();
+            
+            // Limpar após envio
+            setTimeout(() => {
+                form.remove();
+                resolve({ success: true });
+            }, 2000);
         });
-        
-        return { success: true };
     } catch (error) {
         console.error('Erro ao enviar para Google Sheets:', error);
-        // Não bloquear — dados já foram salvos no localStorage
         return { success: true };
     }
 }
