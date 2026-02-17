@@ -90,7 +90,16 @@ function handleDuplicateCheck(e) {
 
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
+    let data;
+    
+    // Aceitar dados via form (campo payload) ou JSON direto
+    if (e.parameter && e.parameter.payload) {
+      data = JSON.parse(e.parameter.payload);
+    } else if (e.postData && e.postData.contents) {
+      data = JSON.parse(e.postData.contents);
+    } else {
+      return jsonResponse({ success: false, error: 'Sem dados recebidos' });
+    }
     
     const sheet = getSheet();
     if (!sheet) {
