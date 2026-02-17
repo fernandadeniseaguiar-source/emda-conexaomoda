@@ -1474,7 +1474,144 @@ body {
 }
 
 /* ========================================
-   Already Sent Modal
+   Duplicate Check - Inline Warning
+======================================== */
+
+.input-duplicate-msg {
+    display: block;
+    font-size: 0.72rem;
+    margin-top: 4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+    transition: all 0.3s ease;
+}
+
+.input-duplicate-msg.hidden {
+    display: none !important;
+}
+
+.input-duplicate-msg.checking {
+    color: var(--color-gray-300);
+    font-style: italic;
+}
+
+.input-duplicate-msg.show {
+    color: #B8860B;
+    background: rgba(201, 169, 98, 0.08);
+    border-left: 2px solid var(--color-gold);
+}
+
+.input-duplicate {
+    border-color: var(--color-gold) !important;
+    box-shadow: 0 0 0 1px rgba(201, 169, 98, 0.2);
+}
+
+/* ========================================
+   Duplicate Modal
+======================================== */
+
+.duplicate-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: var(--space-lg);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.duplicate-modal.show {
+    opacity: 1;
+}
+
+.duplicate-modal-content {
+    background: var(--color-white);
+    border-radius: 20px;
+    padding: var(--space-2xl) var(--space-xl);
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    transform: translateY(20px) scale(0.95);
+    transition: transform 0.3s ease;
+}
+
+.duplicate-modal.show .duplicate-modal-content {
+    transform: translateY(0) scale(1);
+}
+
+.duplicate-modal-icon {
+    margin-bottom: var(--space-lg);
+}
+
+.duplicate-modal-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--color-gray-500);
+    margin-bottom: var(--space-sm);
+}
+
+.duplicate-modal-name {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-gold-dark);
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.duplicate-modal-date {
+    font-size: 0.72rem;
+    color: var(--color-gray-300);
+    margin-bottom: var(--space-lg);
+}
+
+.duplicate-modal-description {
+    font-size: 0.85rem;
+    color: var(--color-gray-400);
+    line-height: 1.5;
+    margin-bottom: var(--space-xl);
+}
+
+.duplicate-modal-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.duplicate-modal-buttons .btn {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.duplicate-modal-buttons .btn-secondary {
+    background: transparent;
+    color: var(--color-gray-400);
+    border: 1px solid var(--color-gray-200);
+}
+
+.duplicate-modal-buttons .btn-primary {
+    background: var(--color-black);
+    color: var(--color-white);
+    border: none;
+}
+
+/* ========================================
+   Already Sent Modal (from welcome)
 ======================================== */
 
 .already-sent-modal {

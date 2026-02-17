@@ -1,10 +1,10 @@
 /* ========================================
    EMDA - Banco de Talentos
-   Application JavaScript v2.0
-   + Verificação "já enviado"
+   Application JavaScript v2.1
+   + Verificação de duplicata no banco (nome/email/whatsapp)
    + Notificação WhatsApp
-   + Tela de sucesso melhorada
-   + Botão voltar na Etapa 1
+   + Tela de sucesso
+   + Botão voltar
 ======================================== */
 
 // ========================================
@@ -59,6 +59,7 @@ const elements = {
 
 let currentStep = 1;
 let photoBase64 = null;
+let duplicateFound = false; // Flag global de duplicata
 
 // ========================================
 // Initialization
@@ -67,11 +68,13 @@ let photoBase64 = null;
 document.addEventListener('DOMContentLoaded', () => {
     initSplashScreen();
     initWelcomeScreen();
+    initHistoryNavigation();
     initPhotoUpload();
     initFormNavigation();
     initFormValidation();
     initPhoneMask();
     initCityAutocomplete();
+    initDuplicateCheck();
     initServiceWorker();
     initInstallPrompt();
 });
@@ -84,7 +87,6 @@ function initSplashScreen() {
     setTimeout(() => {
         elements.splashScreen.classList.add('fade-out');
         elements.app.classList.remove('hidden');
-        
         setTimeout(() => {
             elements.splashScreen.style.display = 'none';
         }, 600);
@@ -92,20 +94,11 @@ function initSplashScreen() {
 }
 
 // ========================================
-// Welcome Screen + Verificação "Já Enviado"
+// Welcome Screen
 // ========================================
 
 function initWelcomeScreen() {
     elements.startBtn.addEventListener('click', () => {
-        // Verificar se já enviou o currículo
-        const alreadySent = localStorage.getItem('emda_curriculo_enviado');
-        
-        if (alreadySent) {
-            const savedData = JSON.parse(alreadySent);
-            showAlreadySentModal(savedData);
-            return;
-        }
-        
         showForm();
     });
 }
@@ -119,68 +112,230 @@ function showForm() {
         elements.welcomeScreen.classList.add('hidden');
         elements.formContainer.classList.remove('hidden');
         window.scrollTo({ top: 0, behavior: 'instant' });
+        pushAppState('step-1');
     }, 500);
 }
 
-function showAlreadySentModal(savedData) {
-    const existing = document.querySelector('.already-sent-modal');
+// ========================================
+// Duplicate Check (banco de dados)
+// ========================================
+
+function initDuplicateCheck() {
+    const nomeInput = document.getElementById('nome');
+    const emailInput = document.getElementById('email');
+    const whatsappInput = document.getElementById('whatsapp');
+    
+    // Debounce timers
+    let nomeTimer, emailTimer, whatsappTimer;
+    
+    // Verificar ao sair do campo (blur) ou após parar de digitar
+    nomeInput.addEventListener('blur', () => {
+        clearTimeout(nomeTimer);
+        const val = nomeInput.value.trim();
+        if (val.length >= 5) { // Nome mínimo razoável
+            checkDuplicate('nome', val);
+        }
+    });
+    
+    emailInput.addEventListener('blur', () => {
+        clearTimeout(emailTimer);
+        const val = emailInput.value.trim();
+        if (val && isValidEmail(val)) {
+            checkDuplicate('email', val);
+        }
+    });
+    
+    whatsappInput.addEventListener('blur', () => {
+        clearTimeout(whatsappTimer);
+        const val = whatsappInput.value.trim();
+        if (val && isValidPhone(val)) {
+            checkDuplicate('whatsapp', val);
+        }
+    });
+}
+
+async function checkDuplicate(field, value) {
+    const msgEl = document.getElementById(`${field}-duplicate`);
+    const inputEl = document.getElementById(field === 'whatsapp' ? 'whatsapp' : field);
+    
+    if (!msgEl) return;
+    
+    // Limpar estado anterior
+    msgEl.classList.add('hidden');
+    msgEl.textContent = '';
+    inputEl.classList.remove('input-duplicate');
+    
+    // Se não tem Google Script configurado, verificar apenas localStorage
+    if (CONFIG.GOOGLE_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL') {
+        // Modo simulação — verificar localStorage
+        const saved = localStorage.getItem('emda_curriculo_enviado');
+        if (saved) {
+            const data = JSON.parse(saved);
+            let match = false;
+            if (field === 'nome' && data.nome && data.nome.toLowerCase() === value.toLowerCase()) match = true;
+            if (field === 'email' && data.email && data.email.toLowerCase() === value.toLowerCase()) match = true;
+            if (field === 'whatsapp' && data.whatsapp) {
+                const cleanSaved = data.whatsapp.replace(/\D/g, '');
+                const cleanNew = value.replace(/\D/g, '');
+                if (cleanSaved === cleanNew) match = true;
+            }
+            
+            if (match) {
+                showDuplicateWarning(field, msgEl, inputEl, data);
+            }
+        }
+        return;
+    }
+    
+    // Mostrar estado de verificação
+    msgEl.textContent = 'Verificando...';
+    msgEl.className = 'input-duplicate-msg checking';
+    
+    try {
+        const cleanValue = field === 'whatsapp' ? value.replace(/\D/g, '') : value;
+        const url = `${CONFIG.GOOGLE_SCRIPT_URL}?action=check&field=${field}&value=${encodeURIComponent(cleanValue)}`;
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.found) {
+            showDuplicateWarning(field, msgEl, inputEl, result.data);
+        } else {
+            // Limpo — nenhum duplicata
+            msgEl.classList.add('hidden');
+            msgEl.textContent = '';
+        }
+    } catch (error) {
+        console.log('Erro na verificação de duplicata:', error);
+        // Silenciosamente falha — não bloquear o formulário
+        msgEl.classList.add('hidden');
+    }
+}
+
+function showDuplicateWarning(field, msgEl, inputEl, existingData) {
+    duplicateFound = true;
+    
+    const fieldNames = {
+        nome: 'nome',
+        email: 'e-mail',
+        whatsapp: 'WhatsApp'
+    };
+    
+    // Mostrar aviso inline no campo
+    msgEl.textContent = `Este ${fieldNames[field]} já está cadastrado`;
+    msgEl.className = 'input-duplicate-msg show';
+    inputEl.classList.add('input-duplicate');
+    
+    // Mostrar modal de duplicata
+    showDuplicateModal(field, existingData);
+}
+
+function showDuplicateModal(field, existingData) {
+    // Remover modal anterior se existir
+    const existing = document.querySelector('.duplicate-modal');
     if (existing) existing.remove();
     
-    const dataEnvio = savedData.dataEnvio ? new Date(savedData.dataEnvio).toLocaleDateString('pt-BR') : '';
+    const fieldNames = {
+        nome: 'nome',
+        email: 'e-mail',
+        whatsapp: 'WhatsApp'
+    };
+    
+    const dataEnvio = existingData.dataEnvio 
+        ? new Date(existingData.dataEnvio).toLocaleDateString('pt-BR') 
+        : existingData.timestamp 
+            ? new Date(existingData.timestamp).toLocaleDateString('pt-BR')
+            : '';
     
     const modal = document.createElement('div');
-    modal.className = 'already-sent-modal';
+    modal.className = 'duplicate-modal';
     modal.innerHTML = `
-        <div class="already-sent-content">
-            <div class="already-sent-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#C9A962" stroke-width="1.5">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
+        <div class="duplicate-modal-content">
+            <div class="duplicate-modal-icon">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#C9A962" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
             </div>
-            <h3 class="already-sent-title">Currículo já cadastrado</h3>
-            <p class="already-sent-name">${savedData.nome || ''}</p>
-            ${dataEnvio ? `<p class="already-sent-date">Enviado em ${dataEnvio}</p>` : ''}
-            <p class="already-sent-description">
-                Você já cadastrou seu currículo no Banco de Talentos. Deseja atualizar seus dados?
+            
+            <h3 class="duplicate-modal-title">Cadastro já realizado</h3>
+            
+            ${existingData.nome ? `<p class="duplicate-modal-name">${existingData.nome}</p>` : ''}
+            ${dataEnvio ? `<p class="duplicate-modal-date">Cadastrado em ${dataEnvio}</p>` : ''}
+            
+            <p class="duplicate-modal-description">
+                Identificamos que este ${fieldNames[field]} já está registrado no nosso Banco de Talentos.
             </p>
-            <div class="already-sent-buttons">
-                <button class="btn btn-secondary already-sent-btn-close">
-                    Não, obrigado
+            
+            <div class="duplicate-modal-buttons">
+                <button class="btn btn-secondary duplicate-btn-update">
+                    Atualizar meus dados
                 </button>
-                <button class="btn btn-primary already-sent-btn-update">
-                    Atualizar dados
+                <button class="btn btn-primary duplicate-btn-close">
+                    Ok, entendi
                 </button>
             </div>
         </div>
     `;
     
     document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('show'));
     
-    requestAnimationFrame(() => {
-        modal.classList.add('show');
-    });
-    
-    modal.querySelector('.already-sent-btn-close').addEventListener('click', () => {
-        modal.classList.remove('show');
-        setTimeout(() => modal.remove(), 300);
-    });
-    
-    modal.querySelector('.already-sent-btn-update').addEventListener('click', () => {
+    // Botão "Ok, entendi" — volta para welcome
+    modal.querySelector('.duplicate-btn-close').addEventListener('click', () => {
         modal.classList.remove('show');
         setTimeout(() => {
             modal.remove();
-            localStorage.removeItem('emda_curriculo_enviado');
-            showForm();
+            // Voltar para Welcome Screen
+            backToWelcome();
+            // Resetar formulário
+            resetForm();
         }, 300);
     });
     
+    // Botão "Atualizar meus dados" — deixar continuar preenchendo
+    modal.querySelector('.duplicate-btn-update').addEventListener('click', () => {
+        modal.classList.remove('show');
+        duplicateFound = false; // Permitir envio
+        setTimeout(() => modal.remove(), 300);
+        
+        // Limpar avisos visuais
+        clearAllDuplicateWarnings();
+    });
+    
+    // Fechar ao clicar no backdrop
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.classList.remove('show');
             setTimeout(() => modal.remove(), 300);
         }
     });
+}
+
+function clearAllDuplicateWarnings() {
+    document.querySelectorAll('.input-duplicate-msg').forEach(el => {
+        el.classList.add('hidden');
+        el.textContent = '';
+    });
+    document.querySelectorAll('.input-duplicate').forEach(el => {
+        el.classList.remove('input-duplicate');
+    });
+    duplicateFound = false;
+}
+
+function resetForm() {
+    elements.form.reset();
+    photoBase64 = null;
+    currentStep = 1;
+    if (elements.photoPreview) {
+        elements.photoPreview.classList.add('hidden');
+        elements.photoPlaceholder.classList.remove('hidden');
+        elements.photoUpload.style.borderStyle = '';
+        elements.photoUpload.style.borderColor = '';
+    }
+    clearAllDuplicateWarnings();
+    goToStep(1);
 }
 
 // ========================================
@@ -233,6 +388,123 @@ function handlePhotoSelect(e) {
 }
 
 // ========================================
+// History Management (botão voltar nativo)
+// ========================================
+
+// Estado de navegação do app:
+// 'welcome' → 'step-1' → 'step-2' → 'step-3' → 'success'
+
+function initHistoryNavigation() {
+    // Estado inicial: welcome
+    history.replaceState({ screen: 'welcome' }, '', '');
+    
+    // Escutar o botão voltar nativo do telefone/navegador
+    window.addEventListener('popstate', (e) => {
+        const state = e.state;
+        
+        if (!state) {
+            // Sem estado = usuário está tentando sair do app
+            // Recolocar o estado welcome para não fechar
+            history.pushState({ screen: 'welcome' }, '', '');
+            
+            // Se não está na welcome, voltar para ela
+            if (!elements.welcomeScreen.classList.contains('hidden')) {
+                // Já está na welcome, não fazer nada
+                return;
+            }
+            handleNativeBack();
+            return;
+        }
+        
+        // Fechar modais abertos primeiro
+        const duplicateModal = document.querySelector('.duplicate-modal');
+        if (duplicateModal) {
+            duplicateModal.classList.remove('show');
+            setTimeout(() => duplicateModal.remove(), 300);
+            // Recolocar o estado atual
+            pushAppState(getCurrentScreen());
+            return;
+        }
+        
+        // Navegar para o estado do histórico
+        navigateToState(state.screen);
+    });
+}
+
+function getCurrentScreen() {
+    if (document.querySelector('.success-screen')) return 'success';
+    if (elements.formContainer && !elements.formContainer.classList.contains('hidden')) {
+        return `step-${currentStep}`;
+    }
+    return 'welcome';
+}
+
+function pushAppState(screen) {
+    history.pushState({ screen: screen }, '', '');
+}
+
+function navigateToState(screen) {
+    if (screen === 'welcome') {
+        // Voltar para Welcome
+        if (!elements.welcomeScreen.classList.contains('hidden')) return; // Já está
+        
+        // Se tem success screen, remover
+        const successScreen = document.querySelector('.success-screen');
+        if (successScreen) {
+            successScreen.remove();
+        }
+        
+        // Voltar do formulário para welcome
+        elements.formContainer.classList.add('hidden');
+        elements.formContainer.style.opacity = '';
+        elements.formContainer.style.transition = '';
+        elements.welcomeScreen.classList.remove('hidden');
+        elements.welcomeScreen.style.opacity = '1';
+        elements.welcomeScreen.style.transform = 'translateY(0)';
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        
+    } else if (screen.startsWith('step-')) {
+        const step = parseInt(screen.split('-')[1]);
+        if (currentStep !== step) {
+            goToStep(step);
+        }
+    }
+}
+
+function handleNativeBack() {
+    const successScreen = document.querySelector('.success-screen');
+    
+    if (successScreen) {
+        // Da success → welcome
+        successScreen.remove();
+        elements.formContainer.classList.add('hidden');
+        elements.welcomeScreen.classList.remove('hidden');
+        elements.welcomeScreen.style.opacity = '1';
+        elements.welcomeScreen.style.transform = 'translateY(0)';
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        pushAppState('welcome');
+        return;
+    }
+    
+    if (!elements.formContainer.classList.contains('hidden')) {
+        // Do formulário
+        if (currentStep > 1) {
+            // Step 2 ou 3 → voltar uma etapa
+            goToStep(currentStep - 1);
+            pushAppState(`step-${currentStep}`);
+        } else {
+            // Step 1 → welcome
+            backToWelcome();
+            pushAppState('welcome');
+        }
+        return;
+    }
+    
+    // Já está na welcome — empurrar estado para não fechar
+    pushAppState('welcome');
+}
+
+// ========================================
 // Form Navigation
 // ========================================
 
@@ -242,6 +514,7 @@ function initFormNavigation() {
             const nextStep = parseInt(btn.dataset.next);
             if (validateStep(currentStep)) {
                 goToStep(nextStep);
+                pushAppState(`step-${nextStep}`);
             }
         });
     });
@@ -250,10 +523,11 @@ function initFormNavigation() {
         btn.addEventListener('click', () => {
             const prevStep = parseInt(btn.dataset.prev);
             if (prevStep === 0) {
-                // Voltar para Welcome Screen
                 backToWelcome();
+                pushAppState('welcome');
             } else {
                 goToStep(prevStep);
+                pushAppState(`step-${prevStep}`);
             }
         });
     });
@@ -482,9 +756,7 @@ function initCityAutocomplete() {
                 const state = item.dataset.value.split(',')[1]?.trim();
                 if (state) {
                     const estadoSelect = document.getElementById('estado');
-                    if (estadoSelect) {
-                        estadoSelect.value = state;
-                    }
+                    if (estadoSelect) estadoSelect.value = state;
                 }
             });
         });
@@ -544,17 +816,18 @@ async function handleSubmit(e) {
     try {
         await sendToGoogleSheets(formData);
         
-        // Salvar flag de "já enviou"
+        // Salvar flag local
         localStorage.setItem('emda_curriculo_enviado', JSON.stringify({
             nome: formData.nome,
             email: formData.email,
+            whatsapp: formData.whatsapp,
             dataEnvio: new Date().toISOString()
         }));
         
         // Mostrar tela de sucesso
         showSuccessScreen(formData);
         
-        // Enviar notificação via WhatsApp (abre em nova aba)
+        // Enviar notificação via WhatsApp (abre em nova aba após delay)
         setTimeout(() => {
             sendWhatsAppNotification(formData);
         }, 1500);
@@ -713,10 +986,10 @@ function showSuccessScreen(formData) {
     
     elements.app.appendChild(successScreen);
     
-    // Botão fechar
+    pushAppState('success');
+    
     successScreen.querySelector('.success-btn-close').addEventListener('click', () => {
         window.close();
-        // Fallback se window.close() não funcionar
         location.reload();
     });
     
@@ -763,14 +1036,10 @@ function initServiceWorker() {
 let deferredPrompt = null;
 
 function initInstallPrompt() {
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        return;
-    }
+    if (window.matchMedia('(display-mode: standalone)').matches) return;
     
     const dismissedAt = localStorage.getItem('installDismissed');
-    if (dismissedAt && (Date.now() - parseInt(dismissedAt)) < 24 * 60 * 60 * 1000) {
-        return;
-    }
+    if (dismissedAt && (Date.now() - parseInt(dismissedAt)) < 24 * 60 * 60 * 1000) return;
     
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
@@ -799,10 +1068,7 @@ function hideInstallPrompt() {
 }
 
 async function handleInstallClick() {
-    if (!deferredPrompt) {
-        showIOSInstallPrompt();
-        return;
-    }
+    if (!deferredPrompt) { showIOSInstallPrompt(); return; }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     console.log('Resultado da instalação:', outcome);
@@ -838,11 +1104,8 @@ function showIOSInstallPrompt() {
             </button>
         </div>
     `;
-    
     document.body.appendChild(modal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
-    });
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
     hideInstallPrompt();
 }
 
