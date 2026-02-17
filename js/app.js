@@ -34,7 +34,6 @@ const elements = {
     installDismiss: document.getElementById('install-dismiss'),
     photoUpload: document.getElementById('photo-upload'),
     photoInput: document.getElementById('photo-input'),
-    cameraInput: document.getElementById('camera-input'),
     photoPreview: document.getElementById('photo-preview'),
     photoPlaceholder: document.getElementById('photo-placeholder'),
     btnGallery: document.getElementById('btn-gallery'),
@@ -110,28 +109,28 @@ function initWelcomeScreen() {
 // ========================================
 
 function initPhotoUpload() {
-    // Click on photo preview area to open gallery
-    elements.photoUpload.addEventListener('click', () => {
-        elements.photoInput.click();
-    });
+    const photoInput = document.getElementById('photo-input');
+    const cameraInput = document.getElementById('camera-input');
+    const btnGallery = document.getElementById('btn-gallery');
+    const btnSelfie = document.getElementById('btn-selfie');
     
     // Gallery button
-    elements.btnGallery.addEventListener('click', (e) => {
+    btnGallery.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
-        elements.photoInput.click();
+        photoInput.click();
     });
     
     // Selfie button
-    elements.btnSelfie.addEventListener('click', (e) => {
+    btnSelfie.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
-        elements.cameraInput.click();
+        cameraInput.click();
     });
     
-    // Handle file selection from gallery
-    elements.photoInput.addEventListener('change', handlePhotoSelect);
-    
-    // Handle file selection from camera
-    elements.cameraInput.addEventListener('change', handlePhotoSelect);
+    // Handle file selection
+    photoInput.addEventListener('change', handlePhotoSelect);
+    cameraInput.addEventListener('change', handlePhotoSelect);
 }
 
 function handlePhotoSelect(e) {
