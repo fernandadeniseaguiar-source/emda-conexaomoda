@@ -816,11 +816,6 @@ async function handleSubmit(e) {
         // Mostrar tela de sucesso
         showSuccessScreen(formData);
         
-        // Enviar notificação via WhatsApp (abre em nova aba após delay)
-        setTimeout(() => {
-            sendWhatsAppNotification(formData);
-        }, 1500);
-        
     } catch (error) {
         console.error('Erro ao enviar:', error);
         alert('Ocorreu um erro ao enviar seu currículo. Por favor, tente novamente.');
@@ -868,33 +863,6 @@ async function sendToGoogleSheets(data) {
         // Não bloquear — dados já foram salvos no localStorage
         return { success: true };
     }
-}
-
-// ========================================
-// WhatsApp Notification
-// ========================================
-
-function sendWhatsAppNotification(formData) {
-    const cursos = formData.cursos || 'Não informado';
-    const cidade = formData.cidade ? `${formData.cidade}/${formData.estado}` : 'Não informada';
-    
-    const message = 
-        `📋 *NOVO CURRÍCULO - Banco de Talentos EMDA*\n\n` +
-        `👤 *Nome:* ${formData.nome}\n` +
-        `📧 *Email:* ${formData.email}\n` +
-        `📱 *WhatsApp:* ${formData.whatsapp}\n` +
-        `📍 *Cidade:* ${cidade}\n` +
-        `🎓 *Cursos:* ${cursos}\n` +
-        `📅 *Conclusão:* ${formData.ano_conclusao || 'Não informado'}\n` +
-        (formData.instagram ? `📸 *Instagram:* @${formData.instagram}\n` : '') +
-        (formData.portfolio ? `🔗 *Portfólio:* ${formData.portfolio}\n` : '') +
-        (formData.linkedin ? `💼 *LinkedIn:* ${formData.linkedin}\n` : '') +
-        `\n📅 *Enviado em:* ${new Date().toLocaleString('pt-BR')}`;
-    
-    const encoded = encodeURIComponent(message);
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=${CONFIG.WHATSAPP_NOTIFY}&text=${encoded}`;
-    
-    window.open(whatsappUrl, '_blank');
 }
 
 // ========================================
