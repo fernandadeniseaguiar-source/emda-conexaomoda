@@ -1305,23 +1305,31 @@ let deferredPrompt = null;
 function initInstallPrompt() {
     if (window.matchMedia('(display-mode: standalone)').matches) return;
     
-    const dismissedAt = localStorage.getItem('installDismissed');
-    if (dismissedAt && (Date.now() - parseInt(dismissedAt)) < 24 * 60 * 60 * 1000) return;
-    
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        setTimeout(() => showInstallPrompt(), 3000);
+        // Não mostra automaticamente — será chamado ao abrir gestão
     });
     
     elements.installAccept.addEventListener('click', handleInstallClick);
     elements.installDismiss.addEventListener('click', hideInstallPrompt);
+}
+
+function showInstallPromptInAdmin() {
+    // Só mostra se não está instalado e não foi dispensado recentemente
+    if (window.matchMedia('(display-mode: standalone)').matches) return;
     
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const isInStandaloneMode = window.navigator.standalone === true;
+    const dismissedAt = localStorage.getItem('installDismissed');
+    if (dismissedAt && (Date.now() - parseInt(dismissedAt)) < 24 * 60 * 60 * 1000) return;
     
-    if (isIOS && !isInStandaloneMode) {
-        setTimeout(() => showIOSInstallPrompt(), 5000);
+    if (deferredPrompt) {
+        setTimeout(() => showInstallPrompt(), 1000);
+    } else {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isInStandaloneMode = window.navigator.standalone === true;
+        if (isIOS && !isInStandaloneMode) {
+            setTimeout(() => showIOSInstallPrompt(), 1000);
+        }
     }
 }
 
@@ -1552,6 +1560,9 @@ function initAdmin() {
     });
     
     pwBtn.addEventListener('click', () => adminChangePassword());
+    
+    // Inicializar filtro de data
+    initDateFilter();
 }
 
 function getAdminAuthParam() {
@@ -1564,7 +1575,19 @@ function getAdminAuthParam() {
 function openAdminPanel() {
     document.getElementById('admin-panel').classList.remove('hidden');
     pushAppState('admin-panel');
+    // Reset date filter
+    activeDateFilter = { type: 'days', days: 7 };
+    updateDateFilterLabel('Últimos 7 dias');
+    const filterPanel = document.getElementById('admin-date-filter');
+    if (filterPanel) {
+        filterPanel.classList.add('hidden');
+        filterPanel.querySelectorAll('.date-filter-opt').forEach(b => b.classList.remove('active'));
+        const first = filterPanel.querySelector('[data-days="7"]');
+        if (first) first.classList.add('active');
+    }
+    document.getElementById('admin-stat-recentes')?.classList.remove('open');
     loadAdminData();
+    showInstallPromptInAdmin();
 }
 
 async function loadAdminData() {
@@ -1643,16 +1666,19 @@ function updateSearchSuggestions() {
     });
 }
 
-function renderAdminList(filter) {
+function renderAdminList(filter, dateFilteredData) {
     const list = document.getElementById('admin-list');
     const empty = document.getElementById('admin-empty');
     list.innerHTML = '';
     
-    let filtered = adminData;
+    let baseData = dateFilteredData || getDateFilteredData();
+    let filtered = baseData;
+    
     if (filter) {
-        filtered = adminData.filter(d => {
+        const filterLower = filter.toLowerCase();
+        filtered = baseData.filter(d => {
             const searchStr = [d.nome, d.email, d.cidade, d.cursos, d.instagram].join(' ').toLowerCase();
-            return searchStr.includes(filter);
+            return searchStr.includes(filterLower);
         });
     }
     
@@ -2284,4 +2310,131 @@ function initPasswordToggles() {
             }
         });
     });
+}
+
+// ========================================
+// Date Filter
+// ========================================
+
+let activeDateFilter = { type: 'days', days: 7 };
+
+function initDateFilter() {
+    const statBtn = document.getElementById('admin-stat-recentes');
+    const filterPanel = document.getElementById('admin-date-filter');
+    if (!statBtn || !filterPanel) return;
+    
+    // Toggle dropdown
+    statBtn.addEventListener('click', () => {
+        const isOpen = !filterPanel.classList.contains('hidden');
+        filterPanel.classList.toggle('hidden');
+        statBtn.classList.toggle('open');
+    });
+    
+    // Quick filter buttons
+    filterPanel.querySelectorAll('.date-filter-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Update active state
+            filterPanel.querySelectorAll('.date-filter-opt').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const days = parseInt(btn.dataset.days);
+            activeDateFilter = { type: 'days', days: days };
+            
+            // Update label
+            updateDateFilterLabel(btn.textContent.trim());
+            
+            // Apply filter
+            applyDateFilter();
+            
+            // Clear custom inputs
+            document.getElementById('admin-date-from').value = '';
+            document.getElementById('admin-date-to').value = '';
+        });
+    });
+    
+    // Custom date apply
+    document.getElementById('admin-date-apply').addEventListener('click', () => {
+        const from = document.getElementById('admin-date-from').value;
+        const to = document.getElementById('admin-date-to').value;
+        
+        if (!from && !to) return;
+        
+        activeDateFilter = {
+            type: 'custom',
+            from: from ? new Date(from + 'T00:00:00') : null,
+            to: to ? new Date(to + 'T23:59:59') : null
+        };
+        
+        // Clear quick filter active
+        filterPanel.querySelectorAll('.date-filter-opt').forEach(b => b.classList.remove('active'));
+        
+        // Update label
+        let label = '';
+        if (from && to) {
+            label = formatShortDate(from) + ' - ' + formatShortDate(to);
+        } else if (from) {
+            label = 'A partir de ' + formatShortDate(from);
+        } else {
+            label = 'Até ' + formatShortDate(to);
+        }
+        updateDateFilterLabel(label);
+        
+        applyDateFilter();
+    });
+}
+
+function formatShortDate(dateStr) {
+    const parts = dateStr.split('-');
+    return parts[2] + '/' + parts[1];
+}
+
+function updateDateFilterLabel(text) {
+    const label = document.querySelector('#admin-stat-recentes .admin-stat-label');
+    if (label) {
+        label.innerHTML = text + ' <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';
+    }
+}
+
+function applyDateFilter() {
+    const now = new Date();
+    let filtered;
+    
+    if (activeDateFilter.type === 'days') {
+        if (activeDateFilter.days === 0) {
+            filtered = adminData;
+        } else {
+            const ms = activeDateFilter.days * 24 * 60 * 60 * 1000;
+            filtered = adminData.filter(d => (now - new Date(d.timestamp)) < ms);
+        }
+    } else {
+        filtered = adminData.filter(d => {
+            const ts = new Date(d.timestamp);
+            if (activeDateFilter.from && ts < activeDateFilter.from) return false;
+            if (activeDateFilter.to && ts > activeDateFilter.to) return false;
+            return true;
+        });
+    }
+    
+    // Update counter
+    document.getElementById('admin-recentes').textContent = filtered.length;
+    
+    // Re-render list with date filter
+    renderAdminList(document.getElementById('admin-search-input').value, filtered);
+}
+
+function getDateFilteredData() {
+    const now = new Date();
+    
+    if (activeDateFilter.type === 'days') {
+        if (activeDateFilter.days === 0) return adminData;
+        const ms = activeDateFilter.days * 24 * 60 * 60 * 1000;
+        return adminData.filter(d => (now - new Date(d.timestamp)) < ms);
+    } else {
+        return adminData.filter(d => {
+            const ts = new Date(d.timestamp);
+            if (activeDateFilter.from && ts < activeDateFilter.from) return false;
+            if (activeDateFilter.to && ts > activeDateFilter.to) return false;
+            return true;
+        });
+    }
 }

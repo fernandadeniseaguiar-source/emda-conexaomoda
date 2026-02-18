@@ -589,9 +589,34 @@
                     <span class="admin-stat-number" id="admin-com-foto">—</span>
                     <span class="admin-stat-label">Com foto</span>
                 </div>
-                <div class="admin-stat">
+                <div class="admin-stat admin-stat-date-filter" id="admin-stat-recentes">
                     <span class="admin-stat-number" id="admin-recentes">—</span>
-                    <span class="admin-stat-label">Últimos 7 dias</span>
+                    <span class="admin-stat-label">Últimos 7 dias <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></span>
+                </div>
+            </div>
+            
+            <!-- Date Filter Dropdown -->
+            <div id="admin-date-filter" class="admin-date-filter hidden">
+                <div class="date-filter-options">
+                    <button class="date-filter-opt active" data-days="7">Últimos 7 dias</button>
+                    <button class="date-filter-opt" data-days="15">Últimos 15 dias</button>
+                    <button class="date-filter-opt" data-days="30">Últimos 30 dias</button>
+                    <button class="date-filter-opt" data-days="90">Últimos 3 meses</button>
+                    <button class="date-filter-opt" data-days="0">Todos</button>
+                </div>
+                <div class="date-filter-custom">
+                    <label class="date-filter-label">Período personalizado</label>
+                    <div class="date-filter-inputs">
+                        <div class="date-filter-field">
+                            <span>De</span>
+                            <input type="date" id="admin-date-from" class="date-filter-input">
+                        </div>
+                        <div class="date-filter-field">
+                            <span>Até</span>
+                            <input type="date" id="admin-date-to" class="date-filter-input">
+                        </div>
+                    </div>
+                    <button id="admin-date-apply" class="date-filter-apply">Aplicar</button>
                 </div>
             </div>
             <div class="admin-search">

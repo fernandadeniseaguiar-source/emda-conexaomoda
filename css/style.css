@@ -241,7 +241,7 @@ body {
 }
 
 .welcome-logo-container {
-    margin-bottom: var(--space-lg);
+    margin-bottom: var(--space-md);
     animation: logoFloat 3s ease-in-out infinite;
 }
 
@@ -252,7 +252,7 @@ body {
 
 .welcome-logo {
     width: 100%;
-    max-width: 450px;
+    max-width: 320px;
     height: auto;
     filter: drop-shadow(0 4px 20px rgba(201, 169, 98, 0.3));
 }
@@ -323,7 +323,7 @@ body {
 
 .welcome-title {
     font-family: var(--font-display);
-    font-size: clamp(1.75rem, 6vw, 2.5rem);
+    font-size: clamp(1.5rem, 5vw, 2.1rem);
     font-weight: 300;
     font-style: italic;
     color: var(--color-white);
@@ -332,7 +332,7 @@ body {
 }
 
 .welcome-description {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 300;
     line-height: 1.7;
     color: var(--color-gray-300);
@@ -374,9 +374,9 @@ body {
     align-items: center;
     justify-content: center;
     gap: var(--space-sm);
-    padding: var(--space-lg) var(--space-2xl);
+    padding: var(--space-md) var(--space-xl);
     font-family: var(--font-body);
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     font-weight: 500;
     letter-spacing: 0.15em;
     text-transform: uppercase;
@@ -2918,4 +2918,136 @@ body {
 
 .password-toggle-btn .hidden {
     display: none;
+}
+
+/* Date Filter */
+.admin-stat-date-filter {
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    border-radius: 6px;
+    padding: 4px 8px !important;
+}
+
+.admin-stat-date-filter:hover {
+    background: rgba(201, 169, 98, 0.1);
+}
+
+.admin-stat-date-filter .admin-stat-label svg {
+    vertical-align: middle;
+    margin-left: 2px;
+    opacity: 0.5;
+    transition: transform 0.2s;
+}
+
+.admin-stat-date-filter.open .admin-stat-label svg {
+    transform: rotate(180deg);
+}
+
+.admin-date-filter {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-100);
+    border-radius: 10px;
+    margin: -4px 16px 8px;
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    animation: fadeIn 0.2s ease;
+}
+
+.date-filter-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.date-filter-opt {
+    padding: 6px 12px;
+    border: 1px solid var(--color-gray-100);
+    border-radius: 20px;
+    background: var(--color-cream);
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    color: var(--color-gray-400);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.date-filter-opt:hover {
+    border-color: var(--color-gold);
+    color: var(--color-gold-dark);
+}
+
+.date-filter-opt.active {
+    background: var(--color-black);
+    color: var(--color-gold);
+    border-color: var(--color-black);
+}
+
+.date-filter-custom {
+    border-top: 1px solid var(--color-gray-100);
+    padding-top: 10px;
+}
+
+.date-filter-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.date-filter-inputs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.date-filter-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.date-filter-field span {
+    font-size: 0.65rem;
+    color: var(--color-gray-300);
+}
+
+.date-filter-input {
+    padding: 7px 8px;
+    border: 1px solid var(--color-gray-100);
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: var(--color-gray-500);
+    background: var(--color-cream);
+    width: 100%;
+}
+
+.date-filter-input:focus {
+    outline: none;
+    border-color: var(--color-gold);
+}
+
+.date-filter-apply {
+    width: 100%;
+    padding: 8px;
+    background: var(--color-black);
+    color: var(--color-gold);
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.date-filter-apply:hover {
+    background: var(--color-gray-500);
 }
